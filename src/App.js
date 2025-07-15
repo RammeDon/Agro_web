@@ -21,26 +21,30 @@ function FitToData({ points }) {
 }
 
 export default function App() {
-  const [files, setFiles] = useState([]); // uploaded file records
-  const [metricsList, setMetricsList] = useState([]); // all metrics seen
+  const [files, setFiles] = useState([]);
+  const [metricsList, setMetricsList] = useState([]);
   const [selectedMetric, setSelectedMetric] = useState("");
   const [gradientSettings, setGradientSettings] = useState({});
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [tempSettings, setTempSettings] = useState({});
+  const [pinSizeKey, setPinSizeKey] = useState("medium"); // <— new
   const fileInputRef = useRef();
   const folderInputRef = useRef();
   const nextFileId = useRef(1);
-
-  // track which paths/names we've already loaded
   const loadedPaths = useRef(new Set());
 
-  // rebuild metric dropdown AND ensure gradientSettings has entries
+  // mapping from key → radius
+  const pinSizes = {
+    small: 2,
+    medium: 4,
+    large: 6,
+  };
+
   useEffect(() => {
-    const allMetrics = new Set();
-    files.forEach((f) => f.metricsKeys.forEach((k) => allMetrics.add(k)));
-    const arr = Array.from(allMetrics);
+    const all = new Set();
+    files.forEach((f) => f.metricsKeys.forEach((k) => all.add(k)));
+    const arr = Array.from(all);
     setMetricsList(arr);
-    // initialize any missing gradientSettings to {min:0,max:1}
     setGradientSettings((prev) => {
       const next = { ...prev };
       arr.forEach((m) => {
@@ -53,19 +57,15 @@ export default function App() {
     }
   }, [files]);
 
-  // open settings modal, seed tempSettings
   const openSettings = () => {
     setTempSettings({ ...gradientSettings });
     setIsSettingsOpen(true);
   };
-
-  // save settings
   const saveSettings = () => {
     setGradientSettings({ ...tempSettings });
     setIsSettingsOpen(false);
   };
 
-  // remove file and free up its path/name for re-loading
   const removeFile = (id) => {
     setFiles((prev) =>
       prev.filter((f) => {
@@ -79,15 +79,15 @@ export default function App() {
     );
   };
 
-  // shared CSV parsing logic
   const parseCsv = ({ name, text, path }) => {
     Papa.parse(text, {
       header: true,
       dynamicTyping: true,
       skipEmptyLines: true,
       complete: ({ data, meta }) => {
-        // vertical (single‐point) format?
-        if (meta.fields.includes("DataName") && meta.fields.includes("Mean")) {
+        const isVertical =
+          meta.fields.includes("DataName") && meta.fields.includes("Mean");
+        if (isVertical) {
           const lookup = {};
           data.forEach((r) => (lookup[r.DataName] = r.Mean));
           const lat = Number(lookup.latitude);
@@ -111,7 +111,6 @@ export default function App() {
             ]);
           }
         } else {
-          // flat (multi‐row) format with NDVI only
           const pts = data
             .map((row) => ({
               lat: Number(row.latitude ?? row.Latitude ?? row.lat),
@@ -139,11 +138,9 @@ export default function App() {
     });
   };
 
-  // handle a single File object (upload or folder)
   const handleFile = (file) => {
     const path = file.webkitRelativePath || file.name;
     const name = file.name;
-    // skip duplicates by path or filename
     if (loadedPaths.current.has(path) || loadedPaths.current.has(name)) return;
     loadedPaths.current.add(path);
     loadedPaths.current.add(name);
@@ -152,13 +149,11 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  // ingest a FileList from drag/drop or inputs
   const ingestFiles = (list) =>
     Array.from(list)
       .filter((f) => f.name.toLowerCase().endsWith(".csv"))
       .forEach(handleFile);
 
-  // UI event handlers
   const onInputChange = (e) => ingestFiles(e.target.files);
   const onDrop = (e) => {
     e.preventDefault();
@@ -169,15 +164,10 @@ export default function App() {
   const onClickFolder = () => folderInputRef.current.click();
   const onFolderChange = (e) => ingestFiles(e.target.files);
 
-  // flatten all points for mapping
   const allPoints = files.flatMap((f) => f.points);
 
-  // normalize & map to red↔blue color
   const getColor = (val) => {
-    const { min, max } = gradientSettings[selectedMetric] || {
-      min: 0,
-      max: 1,
-    };
+    const { min, max } = gradientSettings[selectedMetric] || { min: 0, max: 1 };
     let norm = (val - min) / (max - min);
     norm = Math.max(0, Math.min(1, norm));
     const r = Math.round(255 * norm);
@@ -191,7 +181,7 @@ export default function App() {
       {isSettingsOpen && (
         <div className="modal-overlay">
           <div className="settings-modal">
-            <h4>Version 1.1</h4>
+            <h4>Version 1.2</h4>
             <h2>Gradient Settings</h2>
             {metricsList.map((m) => (
               <div key={m} className="setting-row">
@@ -230,15 +220,19 @@ export default function App() {
 
       {/* ─── Top Bar ─── */}
       <div className="top-bar">
-        {/* Left side - Settings button and Title */}
+        {/* Left side */}
         <div className="top-bar-left">
-          <button className="settings-btn" onClick={openSettings}>
+          <button
+            className="settings-btn"
+            onClick={openSettings}
+            title="Settings"
+          >
             ⚙️
           </button>
           <h1 className="title-text">AgroGauge Map Viewer</h1>
         </div>
 
-        {/* Center - Main controls */}
+        {/* Center: Folder, Upload, Metric & Pin-size */}
         <div className="top-bar-center">
           <button className="folder-load-btn" onClick={onClickFolder}>
             Folder Load
@@ -270,6 +264,7 @@ export default function App() {
             />
           </div>
 
+          {/* metric selector */}
           {metricsList.length > 0 && (
             <label>
               Show metric:&nbsp;
@@ -285,9 +280,22 @@ export default function App() {
               </select>
             </label>
           )}
+
+          {/* new pin-size selector */}
+          <label>
+            Pin size:&nbsp;
+            <select
+              value={pinSizeKey}
+              onChange={(e) => setPinSizeKey(e.target.value)}
+            >
+              <option value="small">Small</option>
+              <option value="medium">Medium</option>
+              <option value="large">Large</option>
+            </select>
+          </label>
         </div>
 
-        {/* Right side - Uploaded files */}
+        {/* Right side */}
         <div className="top-bar-right">
           <details className="file-menu">
             <summary>Uploaded Files</summary>
@@ -340,11 +348,15 @@ export default function App() {
             <CircleMarker
               key={i}
               center={[p.lat, p.lng]}
-              radius={6}
-              pathOptions={{ color, fillColor: color, fillOpacity: 1 }}
+              radius={pinSizes[pinSizeKey]}
+              pathOptions={{
+                color,
+                fillColor: color,
+                fillOpacity: 1,
+              }}
             >
               <Tooltip direction="top" offset={[0, -8]} sticky>
-                {val}
+                {val.toFixed(2)}
               </Tooltip>
             </CircleMarker>
           );
