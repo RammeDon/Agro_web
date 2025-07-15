@@ -31,7 +31,7 @@ export default function App() {
   const folderInputRef = useRef();
   const nextFileId = useRef(1);
 
-  // track paths/names loaded
+  // track which paths/names we've already loaded
   const loadedPaths = useRef(new Set());
 
   // rebuild metric dropdown AND ensure gradientSettings has entries
@@ -65,7 +65,7 @@ export default function App() {
     setIsSettingsOpen(false);
   };
 
-  // remove file and free path/name
+  // remove file and free up its path/name for re-loading
   const removeFile = (id) => {
     setFiles((prev) =>
       prev.filter((f) => {
@@ -79,16 +79,15 @@ export default function App() {
     );
   };
 
-  // parse CSV text
+  // shared CSV parsing logic
   const parseCsv = ({ name, text, path }) => {
     Papa.parse(text, {
       header: true,
       dynamicTyping: true,
       skipEmptyLines: true,
       complete: ({ data, meta }) => {
-        const isVertical =
-          meta.fields.includes("DataName") && meta.fields.includes("Mean");
-        if (isVertical) {
+        // vertical (single‐point) format?
+        if (meta.fields.includes("DataName") && meta.fields.includes("Mean")) {
           const lookup = {};
           data.forEach((r) => (lookup[r.DataName] = r.Mean));
           const lat = Number(lookup.latitude);
@@ -112,6 +111,7 @@ export default function App() {
             ]);
           }
         } else {
+          // flat (multi‐row) format with NDVI only
           const pts = data
             .map((row) => ({
               lat: Number(row.latitude ?? row.Latitude ?? row.lat),
@@ -139,10 +139,11 @@ export default function App() {
     });
   };
 
-  // handle one File object
+  // handle a single File object (upload or folder)
   const handleFile = (file) => {
     const path = file.webkitRelativePath || file.name;
     const name = file.name;
+    // skip duplicates by path or filename
     if (loadedPaths.current.has(path) || loadedPaths.current.has(name)) return;
     loadedPaths.current.add(path);
     loadedPaths.current.add(name);
@@ -151,13 +152,13 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  // ingest CSV FileList
+  // ingest a FileList from drag/drop or inputs
   const ingestFiles = (list) =>
     Array.from(list)
       .filter((f) => f.name.toLowerCase().endsWith(".csv"))
       .forEach(handleFile);
 
-  // UI handlers
+  // UI event handlers
   const onInputChange = (e) => ingestFiles(e.target.files);
   const onDrop = (e) => {
     e.preventDefault();
@@ -168,9 +169,10 @@ export default function App() {
   const onClickFolder = () => folderInputRef.current.click();
   const onFolderChange = (e) => ingestFiles(e.target.files);
 
+  // flatten all points for mapping
   const allPoints = files.flatMap((f) => f.points);
 
-  // normalize & map to color
+  // normalize & map to red↔blue color
   const getColor = (val) => {
     const { min, max } = gradientSettings[selectedMetric] || {
       min: 0,
@@ -185,16 +187,11 @@ export default function App() {
 
   return (
     <div className="App">
-      {/* Settings icon */}
-      <button className="settings-btn" onClick={openSettings}>
-        ⚙️
-      </button>
-
       {/* Settings modal */}
       {isSettingsOpen && (
         <div className="modal-overlay">
           <div className="settings-modal">
-            <h4>Version 1.0</h4>
+            <h4>Version 1.1</h4>
             <h2>Gradient Settings</h2>
             {metricsList.map((m) => (
               <div key={m} className="setting-row">
@@ -204,12 +201,9 @@ export default function App() {
                   step="any"
                   value={tempSettings[m]?.min ?? ""}
                   onChange={(e) =>
-                    setTempSettings((prev) => ({
-                      ...prev,
-                      [m]: {
-                        ...prev[m],
-                        min: parseFloat(e.target.value),
-                      },
+                    setTempSettings((p) => ({
+                      ...p,
+                      [m]: { ...p[m], min: parseFloat(e.target.value) },
                     }))
                   }
                 />
@@ -218,12 +212,9 @@ export default function App() {
                   step="any"
                   value={tempSettings[m]?.max ?? ""}
                   onChange={(e) =>
-                    setTempSettings((prev) => ({
-                      ...prev,
-                      [m]: {
-                        ...prev[m],
-                        max: parseFloat(e.target.value),
-                      },
+                    setTempSettings((p) => ({
+                      ...p,
+                      [m]: { ...p[m], max: parseFloat(e.target.value) },
                     }))
                   }
                 />
@@ -237,70 +228,87 @@ export default function App() {
         </div>
       )}
 
-      <h1>AgroGauge Map Viewer</h1>
-
-      {/* Controls */}
-      <div className="controls">
-        <button className="folder-load-btn" onClick={onClickFolder}>
-          Folder Load
-        </button>
-        <input
-          ref={folderInputRef}
-          type="file"
-          webkitdirectory=""
-          directory=""
-          multiple
-          style={{ display: "none" }}
-          onChange={onFolderChange}
-        />
-
-        <div
-          className="upload-area"
-          onClick={onClickUpload}
-          onDrop={onDrop}
-          onDragOver={onDragOver}
-        >
-          <p>📂 Drag & drop CSVs here, or click to browse.</p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept=".csv"
-            onChange={onInputChange}
-            style={{ display: "none" }}
-          />
+      {/* ─── Top Bar ─── */}
+      <div className="top-bar">
+        {/* Left side - Settings button and Title */}
+        <div className="top-bar-left">
+          <button className="settings-btn" onClick={openSettings}>
+            ⚙️
+          </button>
+          <h1 className="title-text">AgroGauge Map Viewer</h1>
         </div>
 
-        {metricsList.length > 0 && (
-          <label>
-            Show metric:&nbsp;
-            <select
-              value={selectedMetric}
-              onChange={(e) => setSelectedMetric(e.target.value)}
-            >
-              {metricsList.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-      </div>
+        {/* Center - Main controls */}
+        <div className="top-bar-center">
+          <button className="folder-load-btn" onClick={onClickFolder}>
+            Folder Load
+          </button>
+          <input
+            ref={folderInputRef}
+            type="file"
+            webkitdirectory=""
+            directory=""
+            multiple
+            style={{ display: "none" }}
+            onChange={onFolderChange}
+          />
 
-      {/* File menu */}
-      <div className="file-menu">
-        {files.map((f) => (
-          <div key={f.id} className="file-menu-item">
-            <span className="file-name">{f.name}</span>
-            <button className="file-remove" onClick={() => removeFile(f.id)}>
-              ✕
-            </button>
+          <div
+            className="upload-area"
+            onClick={onClickUpload}
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+          >
+            <p>📂 Drag & drop CSVs here, or click to browse.</p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".csv"
+              onChange={onInputChange}
+              style={{ display: "none" }}
+            />
           </div>
-        ))}
+
+          {metricsList.length > 0 && (
+            <label>
+              Show metric:&nbsp;
+              <select
+                value={selectedMetric}
+                onChange={(e) => setSelectedMetric(e.target.value)}
+              >
+                {metricsList.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+
+        {/* Right side - Uploaded files */}
+        <div className="top-bar-right">
+          <details className="file-menu">
+            <summary>Uploaded Files</summary>
+            <ul>
+              {files.map((f) => (
+                <li key={f.id}>
+                  <span className="file-name">{f.name}</span>
+                  <button
+                    className="file-remove"
+                    onClick={() => removeFile(f.id)}
+                  >
+                    ✕
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </details>
+        </div>
       </div>
 
-      {/* ← Gradient bar */}
+      {/* Gradient bar */}
       <div className="gradient-bar">
         <span className="gradient-label top">
           {gradientSettings[selectedMetric]?.max ?? ""}
@@ -315,11 +323,12 @@ export default function App() {
       <MapContainer
         center={[0, 0]}
         zoom={2}
-        style={{ height: "75vh", width: "100%" }}
+        style={{ height: "90vh", width: "100%" }}
+        attributionControl={false}
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution="&copy; OpenStreetMap contributors"
+          attribution=""
         />
         <FitToData points={allPoints} />
 
