@@ -194,6 +194,7 @@ export default function App() {
       {isSettingsOpen && (
         <div className="modal-overlay">
           <div className="settings-modal">
+            <h4>Version 1.0</h4>
             <h2>Gradient Settings</h2>
             {metricsList.map((m) => (
               <div key={m} className="setting-row">
@@ -301,9 +302,13 @@ export default function App() {
 
       {/* ← Gradient bar */}
       <div className="gradient-bar">
-        <span className="gradient-label top">1</span>
+        <span className="gradient-label top">
+          {gradientSettings[selectedMetric]?.max ?? ""}
+        </span>
         <div className="gradient" />
-        <span className="gradient-label bottom">0</span>
+        <span className="gradient-label bottom">
+          {gradientSettings[selectedMetric]?.min ?? ""}
+        </span>
       </div>
 
       {/* Map */}
