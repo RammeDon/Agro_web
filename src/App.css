@@ -1,0 +1,187 @@
+.App {
+  position: relative; /* needed for absolute file-menu */
+  margin: 0;
+  padding: 0;
+  font-family: sans-serif;
+}
+
+h1 {
+  text-align: center;
+  margin: 1rem 0 0.5rem;
+}
+
+/* —— Controls (upload + dropdown) —— */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.upload-area {
+  padding: 1.5rem;
+  width: 90%;
+  max-width: 400px;
+  border: 2px dashed #bbb;
+  border-radius: 6px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.upload-area:hover {
+  background: #fafafa;
+}
+.controls select {
+  font-size: 1rem;
+  padding: 0.25rem 0.5rem;
+}
+
+/* —— File-list menu —— */
+.file-menu {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  max-width: 200px;
+  z-index: 1000;
+  overflow: hidden;
+}
+.file-menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  font-size: 0.9rem;
+}
+.file-menu-item + .file-menu-item {
+  border-top: 1px solid #eee;
+}
+.file-remove {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1rem;
+  color: #888;
+}
+.file-remove:hover {
+  color: #f33;
+}
+.file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140px;
+}
+/* Folder Load button */
+.folder-load-btn {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.95rem;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.folder-load-btn:hover {
+  background: #5a6268;
+}
+/* gradient bar on left */
+.gradient-bar {
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 1000;
+}
+.gradient {
+  width: 35px;
+  height: 300px;
+  background: linear-gradient(to bottom, red, blue);
+  border: 1px solid #ccc;
+  margin: 4px 0;
+}
+.gradient-label {
+  font-size: 0.8rem;
+  color: #333;
+}
+.gradient-label.top {
+  margin-bottom: 4px;
+}
+.gradient-label.bottom {
+  margin-top: 4px;
+}
+/* ── Settings button ── */
+.settings-btn {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1000;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+/* ── Settings modal ── */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+.settings-modal {
+  background: white;
+  padding: 1rem;
+  border-radius: 6px;
+  width: 90%;
+  max-width: 400px;
+}
+.settings-modal h2 {
+  margin-top: 0;
+}
+.setting-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.setting-row label {
+  flex: 1;
+}
+.setting-row input {
+  width: 70px;
+  padding: 0.2rem;
+}
+.settings-modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.settings-modal-buttons button {
+  padding: 0.4rem 0.8rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.settings-modal-buttons button:first-child {
+  background: #2a93ee;
+  color: white;
+}
+.settings-modal-buttons button:last-child {
+  background: #ccc;
+}
